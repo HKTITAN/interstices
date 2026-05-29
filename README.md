@@ -8,8 +8,8 @@ preview. Click to open it.
 Live: **[interstices.vercel.app](https://interstices.vercel.app)**
 
 No framework, no build step — three files (`index.html`, `app.js`, `style.css`)
-and a tiny static server. The only thing it loads at runtime is fonts and the
-demo photos.
+and a tiny static server. At runtime it loads only fonts, the demo photos, and
+Vercel's cookieless Web Analytics ping.
 
 ## Features
 
