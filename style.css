@@ -12,7 +12,11 @@
   --glass-hover: rgba(36, 36, 42, 0.82);
   --sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --serif: "Instrument Serif", "Playfair Display", Georgia, serif;
+  --marker: "Shantell Sans", "Comic Sans MS", var(--sans);
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  /* naive onboarding layer */
+  --crayon: #ff7a4d;
+  --hand: #f1e4cf;
 }
 [data-theme="light"] {
   --bg: #f3f3f1;
@@ -24,6 +28,8 @@
   --line: rgba(0, 0, 0, 0.12);
   --glass: rgba(255, 255, 255, 0.72);
   --glass-hover: rgba(255, 255, 255, 0.92);
+  --crayon: #e8542b;
+  --hand: #3a3430;
 }
 
 .sr-only {
@@ -152,7 +158,35 @@ a {
   color: var(--muted);
 }
 
-/* ── hover preview (follows the cursor) ───────────────────── */
+/* ── scrim — the wall dims (stays visible) behind a focused photo ── */
+#scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: rgb(var(--bg-rgb) / 0.64);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s var(--ease);
+}
+body.focused #scrim {
+  opacity: 1;
+  pointer-events: auto;
+}
+/* clear the chrome away while focused */
+body.focused #intro,
+body.focused #tools,
+body.focused #theme,
+body.focused #credits {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+/* ── preview / focused view (one element, two sizes) ───────────
+   On hover it's a small card at the cursor; on focus it glides to centre and
+   grows in place (height transitions, chrome fades in) — driven by frame(). */
 #preview {
   position: fixed;
   top: 0;
@@ -162,19 +196,40 @@ a {
   opacity: 0;
   will-change: transform, opacity;
 }
+body.focused #preview {
+  pointer-events: auto;
+}
 .preview-media {
-  height: clamp(180px, 38vh, 340px);
-  aspect-ratio: 1.5;
+  position: relative;
+  height: clamp(168px, 36vh, 326px);
+  /* aspect-ratio set inline per item → `contain` neither crops nor letterboxes */
   overflow: hidden;
   border-radius: 6px;
-  background: #141417;
+  background: var(--tile);
   box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.95);
+  transition: height 0.5s var(--ease), max-width 0.5s var(--ease),
+    border-radius 0.4s var(--ease);
 }
+body.focused .preview-media {
+  height: 58vh;
+  max-width: min(86vw, 1100px);
+  border-radius: 9px;
+}
+.preview-media .media {
+  object-fit: contain;
+}
+
+/* hover caption (bottom-left, on the card) */
 .preview-cap {
   position: absolute;
   left: 12px;
   bottom: 10px;
+  z-index: 2;
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
+  transition: opacity 0.3s ease;
+}
+body.focused .preview-cap {
+  opacity: 0;
 }
 .preview-cat {
   display: block;
@@ -194,6 +249,98 @@ a {
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* focus chrome — head above, foot below, positioned around the media so they
+   never affect its size */
+.pv-head,
+.pv-foot {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease 0.06s;
+}
+.pv-head {
+  bottom: 100%;
+  margin-bottom: 18px;
+}
+.pv-foot {
+  top: 100%;
+  margin-top: 18px;
+}
+body.focused .pv-head,
+body.focused .pv-foot {
+  opacity: 1;
+  pointer-events: auto;
+}
+.pv-headtext {
+  text-align: center;
+  max-width: min(70vw, 680px);
+  overflow: hidden;
+}
+.pv-cat {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.pv-title {
+  display: block;
+  font-family: var(--serif);
+  font-size: clamp(1.5rem, 3.4vw, 2.3rem);
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pv-meta {
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+.pv-actions {
+  display: inline-flex;
+  gap: 8px;
+}
+.pv-nav,
+.pv-btn {
+  display: grid;
+  place-items: center;
+  border-radius: 9999px;
+  border: 1px solid var(--line);
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  color: var(--ink);
+  cursor: pointer;
+  transition: transform 0.15s var(--ease), background-color 0.2s ease,
+    color 0.2s ease;
+}
+.pv-nav {
+  width: 40px;
+  height: 40px;
+}
+.pv-btn {
+  width: 34px;
+  height: 34px;
+  color: var(--muted);
+}
+.pv-nav:hover,
+.pv-btn:hover {
+  background: var(--glass-hover);
+  color: var(--ink);
+  transform: translateY(-1px);
+}
+.pv-nav:active,
+.pv-btn:active {
+  transform: scale(0.95);
 }
 
 /* ── glass controls (top-left) ────────────────────────────── */
@@ -360,124 +507,115 @@ a {
   color: var(--faint);
 }
 
-/* ── lightbox ─────────────────────────────────────────────── */
-#lightbox {
+/* ── onboarding: roaming finger + naive doodle hints ──────────
+   The "brand layer" — warm, hand-drawn, transient. Decorative only; it never
+   touches the disciplined product UI, and it bows out the moment you engage. */
+#finger {
   position: fixed;
-  inset: 0;
-  z-index: 90;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  padding: 4vmin;
+  left: 34px;
+  bottom: 132px;
+  z-index: 40;
+  width: 46px;
+  height: 54px;
+  fill: var(--hand);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(10px) rotate(-10deg);
+  filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.35));
+  transition: opacity 0.5s ease, transform 0.5s var(--ease);
 }
-#lightbox.show {
-  display: flex;
+#finger.show {
+  opacity: 0.96;
+  transform: none;
+  animation: finger-roam 4.6s var(--ease) infinite;
 }
-.lb-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgb(var(--bg-rgb) / 0.88);
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
+@keyframes finger-roam {
+  0% {
+    transform: translate(0, 0) rotate(-10deg);
+  }
+  22% {
+    transform: translate(58px, -26px) rotate(-3deg);
+  }
+  46% {
+    transform: translate(128px, -8px) rotate(-12deg);
+  }
+  54% {
+    transform: translate(128px, -8px) rotate(-12deg) scale(0.88);
+  }
+  60% {
+    transform: translate(128px, -8px) rotate(-12deg) scale(1);
+  }
+  78% {
+    transform: translate(66px, -34px) rotate(-5deg);
+  }
+  100% {
+    transform: translate(0, 0) rotate(-10deg);
+  }
 }
-.lb-nav {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 2;
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 9999px;
-  border: 1px solid var(--line);
-  background: var(--glass);
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
-  color: var(--ink);
-  cursor: pointer;
-  transition: transform 0.15s var(--ease);
+
+.hint {
+  position: fixed;
+  z-index: 58;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.45s ease, transform 0.45s var(--ease);
 }
-.lb-nav:hover {
-  transform: translateY(-50%) scale(1.06);
+.hint.show {
+  opacity: 1;
+  transform: none;
 }
-.lb-prev {
-  left: 3vmin;
+#hint-upload {
+  top: 12px;
+  left: 60px;
 }
-.lb-next {
-  right: 3vmin;
+#hint-source {
+  bottom: 58px;
+  right: 14px;
 }
-.lb-figure {
-  position: relative;
-  z-index: 1;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
-  max-width: min(92vw, 1100px);
-  max-height: 92vh;
-}
-.lb-head {
-  text-align: center;
-}
-.lb-cat {
+.doodle {
   display: block;
-  font-size: 0.6875rem;
-  font-weight: 500;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--faint);
+  overflow: visible;
+  stroke: var(--crayon);
+  filter: url(#wobble);
 }
-.lb-title {
-  font-family: var(--serif);
-  font-size: clamp(1.6rem, 4vw, 2.4rem);
-  word-break: break-word;
+.hint-note {
+  position: absolute;
+  font-family: var(--marker);
+  font-weight: 600;
+  font-size: 0.98rem;
+  color: var(--crayon);
+  white-space: nowrap;
+  text-shadow: 0 1px 10px rgb(var(--bg-rgb) / 0.95),
+    0 0 3px rgb(var(--bg-rgb) / 0.85);
 }
-.lb-media {
-  max-height: 64vh;
-  max-width: 88vw;
-  aspect-ratio: 1.5;
-  display: flex;
+#hint-upload .hint-note {
+  top: 50px;
+  left: 96px;
+  transform: rotate(-3deg);
 }
-.lb-media .media {
-  width: 100%;
-  height: 100%;
-  object-fit: contain; /* full media, never cropped */
-  border-radius: 8px;
-  box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.95);
+#hint-source .hint-note {
+  top: -2px;
+  right: 84px;
+  transform: rotate(2deg);
 }
-.lb-foot {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+.draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
 }
-.lb-meta {
-  font-size: 0.8rem;
-  letter-spacing: 0.02em;
-  color: var(--muted);
+.hint.show .draw {
+  animation: draw 0.85s var(--ease) forwards;
 }
-.lb-actions {
-  display: inline-flex;
-  gap: 8px;
+.hint.show .d2 {
+  animation-delay: 0.6s;
 }
-.lb-download,
-.lb-close {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 9999px;
-  border: 1px solid var(--line);
-  background: var(--glass);
-  color: var(--muted);
-  cursor: pointer;
-  transition: color 0.2s ease, background-color 0.2s ease;
+.hint.show .d3 {
+  animation-delay: 0.72s;
 }
-.lb-download:hover,
-.lb-close:hover {
-  color: var(--ink);
-  background: var(--glass-hover);
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 
 /* ── toast ────────────────────────────────────────────────── */
@@ -515,5 +653,14 @@ a {
 @media (prefers-reduced-motion: reduce) {
   * {
     transition-duration: 0.01ms !important;
+  }
+  /* show the finished drawing, never a frozen half-stroke or roaming loop */
+  #finger.show {
+    animation: none;
+  }
+  .draw,
+  .hint.show .draw {
+    stroke-dashoffset: 0;
+    animation: none;
   }
 }

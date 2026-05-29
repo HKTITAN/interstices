@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Instrument+Serif:ital@0;1&family=Playfair+Display:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Instrument+Serif:ital@0;1&family=Playfair+Display:wght@400;500;600&family=Shantell+Sans:wght@500;600&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/style.css" />
@@ -27,12 +27,30 @@
       <!-- legibility wash behind the intro copy -->
       <div class="wash" aria-hidden="true"></div>
 
-      <!-- hover preview that follows the cursor -->
+      <!-- dim layer when a photo is focused — the wall stays visible behind -->
+      <div id="scrim" aria-hidden="true"></div>
+
+      <!-- one element for BOTH the hover preview and the in-frame focused view:
+           on click it glides from the cursor to centre and grows in place, the
+           wall dimming behind — never a separate full-screen overlay. -->
       <div id="preview" aria-hidden="true">
-        <div class="preview-media"></div>
-        <div class="preview-cap">
-          <span class="preview-cat"></span>
-          <span class="preview-label"></span>
+        <div class="pv-head">
+          <button type="button" class="pv-nav pv-prev" aria-label="Previous photo"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg></button>
+          <span class="pv-headtext"><span class="pv-cat"></span><span class="pv-title"></span></span>
+          <button type="button" class="pv-nav pv-next" aria-label="Next photo"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg></button>
+        </div>
+        <div class="preview-media">
+          <div class="preview-cap">
+            <span class="preview-cat"></span>
+            <span class="preview-label"></span>
+          </div>
+        </div>
+        <div class="pv-foot">
+          <span class="pv-meta"></span>
+          <span class="pv-actions">
+            <a class="pv-btn pv-download" aria-label="Download" title="Download" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11" /><path d="M8 11l4 4 4-4" /><path d="M5 19h14" /></svg></a>
+            <button type="button" class="pv-btn pv-close" aria-label="Close" title="Close"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg></button>
+          </span>
         </div>
       </div>
 
@@ -80,25 +98,44 @@
       </div>
     </div>
 
-    <!-- lightbox -->
-    <div id="lightbox" role="dialog" aria-modal="true" aria-label="Photo viewer">
-      <div class="lb-backdrop"></div>
-      <button type="button" class="lb-nav lb-prev" aria-label="Previous"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg></button>
-      <button type="button" class="lb-nav lb-next" aria-label="Next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg></button>
-      <figure class="lb-figure">
-        <figcaption class="lb-head">
-          <span class="lb-cat"></span>
-          <span class="lb-title"></span>
-        </figcaption>
-        <div class="lb-media"></div>
-        <div class="lb-foot">
-          <span class="lb-meta"></span>
-          <span class="lb-actions">
-            <a class="lb-download" aria-label="Download" title="Download" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11" /><path d="M8 11l4 4 4-4" /><path d="M5 19h14" /></svg></a>
-            <button type="button" class="lb-close" aria-label="Close" title="Close"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg></button>
-          </span>
-        </div>
-      </figure>
+    <!-- onboarding: a hand-drawn wobble filter, a roaming finger, two doodle
+         hints. Decorative + transient — the naive "brand layer" over a clean app. -->
+    <svg width="0" height="0" aria-hidden="true" style="position: absolute">
+      <filter id="wobble" x="-20%" y="-20%" width="140%" height="140%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="4" result="n" />
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="4" />
+      </filter>
+    </svg>
+
+    <!-- a friendly pointing hand that roams the wordmark, inviting the first
+         cursor move: index finger up at left, folded knuckles + thumb at right -->
+    <svg id="finger" viewBox="0 0 48 56" aria-hidden="true">
+      <rect x="8" y="6" width="9" height="27" rx="4.5" />
+      <circle cx="22" cy="26" r="5" />
+      <circle cx="30" cy="27" r="5" />
+      <circle cx="37" cy="30" r="4.5" />
+      <rect x="9" y="28" width="32" height="22" rx="11" />
+      <rect x="33" y="33" width="8" height="15" rx="4" transform="rotate(22 37 40)" />
+    </svg>
+
+    <!-- doodle → Upload -->
+    <div id="hint-upload" class="hint" aria-hidden="true">
+      <svg class="doodle" viewBox="0 0 130 76" width="130" height="76" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <path class="draw d1" pathLength="1" d="M120 64 C76 72 32 56 16 24" />
+        <path class="draw d2" pathLength="1" d="M16 24 L10 41" />
+        <path class="draw d3" pathLength="1" d="M16 24 L33 27" />
+      </svg>
+      <span class="hint-note">your photos go here!</span>
+    </div>
+
+    <!-- doodle → GitHub source link -->
+    <div id="hint-source" class="hint" aria-hidden="true">
+      <svg class="doodle" viewBox="0 0 116 70" width="116" height="70" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <path class="draw d1" pathLength="1" d="M6 8 C44 4 86 18 102 58" />
+        <path class="draw d2" pathLength="1" d="M102 58 L86 53" />
+        <path class="draw d3" pathLength="1" d="M102 58 L106 42" />
+      </svg>
+      <span class="hint-note">it's open source!</span>
     </div>
 
     <div id="toast" role="status"></div>

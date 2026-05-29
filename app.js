@@ -115,6 +115,7 @@ let radius = 0
 let introT = 0 // 0→1 reveal progress (M)
 let radiusEnable = 0 // 0→1 (k)
 let previewScale = 0 // 0→1 (j)
+let focusAmt = 0 // 0→1 eased focus weight (preview → centred + grown)
 let focused = false
 let featured = 0
 let started = false
@@ -232,9 +233,14 @@ function frame(now) {
   }
   pan.x += (panTarget.x - pan.x) * 0.07
   pan.y += (panTarget.y - pan.y) * 0.07
-  if (pointer.has) {
-    cur.x += (pointer.x - pan.x - cur.x) * 0.25
-    cur.y += (pointer.y - pan.y - cur.y) * 0.25
+  // when focused, the clearing opens at viewport centre so the chosen photo sits
+  // in clean, parted space; otherwise it tracks the cursor
+  const aimX = focused ? vp.vw / 2 : pointer.x
+  const aimY = focused ? vp.vh / 2 : pointer.y
+  if (pointer.has || focused) {
+    const ck = focused ? 0.06 : 0.25
+    cur.x += (aimX - pan.x - cur.x) * ck
+    cur.y += (aimY - pan.y - cur.y) * ck
   }
   const rTarget = (focused ? (vp.mobile ? 280 : 420) : hovering ? (vp.mobile ? 200 : 280) : (vp.mobile ? 130 : 200)) * radiusEnable
   radius += (rTarget - radius) * 0.07
@@ -298,82 +304,103 @@ function frame(now) {
   }
   prevPos.x += (rawPointer.x - prevPos.x) * 0.25
   prevPos.y += (rawPointer.y - prevPos.y) * 0.25
-  positionPreview(prevPos.x, prevPos.y)
+  // the preview card IS the focused view: as focusAmt rises it glides from the
+  // cursor to viewport centre and the CSS .focused class grows it + reveals the
+  // chrome — no separate overlay, the photo opens within the frame.
+  focusAmt += ((focused ? 1 : 0) - focusAmt) * 0.12
+  const tx = prevPos.x + (vp.vw / 2 - prevPos.x) * focusAmt
+  const ty = prevPos.y + (vp.vh / 2 - prevPos.y) * focusAmt
+  const hoverScale = 0.7 + 0.3 * previewScale
+  const scl = hoverScale + (1 - hoverScale) * focusAmt
+  const op = Math.max(previewScale, focusAmt)
+  preview.style.transform = `translate3d(${tx.toFixed(1)}px, ${ty.toFixed(1)}px, 0) translate(-50%, -50%) scale(${scl.toFixed(3)})`
+  preview.style.opacity = op < 0.999 ? op.toFixed(3) : '1'
   requestAnimationFrame(frame)
 }
 const featuredVisible = () => started
 
-// ── hover preview (the floating card that follows the cursor) ──
+// ── preview / focus (one element does both) ───────────────────
+// The card that follows the cursor on hover IS the focused view. On click it
+// glides to centre and grows in place (driven in frame()); here we just keep
+// its contents and the open/close/nav state in sync.
 const preview = document.getElementById('preview')
 const previewMediaWrap = preview.querySelector('.preview-media')
 const previewCat = preview.querySelector('.preview-cat')
 const previewLabel = preview.querySelector('.preview-label')
+const pvCat = preview.querySelector('.pv-cat')
+const pvTitle = preview.querySelector('.pv-title')
+const pvMeta = preview.querySelector('.pv-meta')
+const pvDownload = preview.querySelector('.pv-download')
+const scrim = document.getElementById('scrim')
 let previewMi = -1
+let previewMediaEl = null
+let focusIndex = 0
+
 function updatePreview(mi) {
   if (mi === previewMi) return
   previewMi = mi
   const item = media[mi]
-  previewMediaWrap.textContent = ''
-  previewMediaWrap.appendChild(makeMediaEl(item, 320, 'cover'))
-  previewMediaWrap.style.aspectRatio = String(item.aspect)
+  // keep the previous image (and its aspect) on screen until the new, higher-res
+  // source is ready — so the card never flashes its dark backing mid-load
+  const el = makeMediaEl(item, 900, 'contain') // wrap aspect = item aspect → no crop
+  if (item.kind === 'video') el.controls = focused
+  const old = previewMediaEl
+  previewMediaEl = el
+  previewMediaWrap.insertBefore(el, previewMediaWrap.firstChild)
+  const reveal = () => {
+    if (el !== previewMediaEl) { el.remove(); return } // superseded by a newer hover
+    el.style.opacity = ''
+    previewMediaWrap.style.aspectRatio = String(item.aspect)
+    if (old && old !== el) old.remove()
+  }
+  if (item.kind === 'video' || (el.complete && el.naturalWidth)) reveal()
+  else {
+    el.style.opacity = '0'
+    el.addEventListener('load', reveal, { once: true })
+    el.addEventListener('error', reveal, { once: true })
+  }
   previewCat.textContent = item.category
   previewLabel.textContent = item.label || ''
   previewLabel.style.display = item.label ? '' : 'none'
-}
-function positionPreview(x, y) {
-  if (focused) { preview.style.opacity = '0'; return }
-  preview.style.transform = `translate3d(${(x).toFixed(1)}px, ${(y).toFixed(1)}px, 0) translate(-50%, -50%) scale(${(0.7 + 0.3 * previewScale).toFixed(3)})`
-  preview.style.opacity = previewScale.toFixed(3)
+  pvCat.textContent = item.category
+  pvTitle.textContent = item.label || 'Untitled'
+  pvMeta.textContent = item.meta || ''
+  pvMeta.style.display = item.meta ? '' : 'none'
+  pvDownload.href = item.url || srcFor(item, 1600)
+  pvDownload.setAttribute('download', item.label || 'photo')
 }
 
-// ── lightbox ──────────────────────────────────────────────────
-const lightbox = document.getElementById('lightbox')
-const lbMedia = lightbox.querySelector('.lb-media')
-const lbCat = lightbox.querySelector('.lb-cat')
-const lbTitle = lightbox.querySelector('.lb-title')
-const lbMeta = lightbox.querySelector('.lb-meta')
-const lbDownload = lightbox.querySelector('.lb-download')
-let lbIndex = 0
-
-function openLightbox(mi) {
-  lbIndex = mi
+function focusPhoto(mi) {
+  focusIndex = mi
   focused = true
-  renderLightbox()
-  lightbox.classList.add('show')
-  document.body.style.overflow = 'hidden'
+  previewMi = -1 // force a rebuild (controls / fresh media for the focused item)
+  updatePreview(mi)
+  document.body.classList.add('focused')
+  preview.setAttribute('aria-hidden', 'false')
+  hideHints()
 }
-function closeLightbox() {
+function unfocus() {
+  if (!focused) return
   focused = false
-  lightbox.classList.remove('show')
-  document.body.style.overflow = ''
+  document.body.classList.remove('focused')
+  preview.setAttribute('aria-hidden', 'true')
+  // hand the card back to whatever the cursor is over
+  if (layout && layout.cells[featured]) { previewMi = -1; updatePreview(layout.cells[featured].mi) }
 }
-function navLightbox(dir) {
-  lbIndex = (lbIndex + dir + media.length) % media.length
-  renderLightbox()
+function navFocus(dir) {
+  focusIndex = (focusIndex + dir + media.length) % media.length
+  previewMi = -1
+  updatePreview(focusIndex)
 }
-function renderLightbox() {
-  const item = media[lbIndex]
-  lbMedia.textContent = ''
-  const el = makeMediaEl(item, 1400, 'contain') // full photo, no crop
-  if (item.kind === 'video') { el.controls = true }
-  lbMedia.appendChild(el)
-  lbMedia.style.aspectRatio = String(item.aspect)
-  lbCat.textContent = item.category
-  lbTitle.textContent = item.label || 'Untitled'
-  lbMeta.textContent = item.meta || ''
-  lbMeta.style.display = item.meta ? '' : 'none'
-  lbDownload.href = item.url || srcFor(item, 1600)
-  lbDownload.download = item.label || 'photo'
-}
-lightbox.querySelector('.lb-close').addEventListener('click', closeLightbox)
-lightbox.querySelector('.lb-prev').addEventListener('click', () => navLightbox(-1))
-lightbox.querySelector('.lb-next').addEventListener('click', () => navLightbox(1))
-lightbox.querySelector('.lb-backdrop').addEventListener('click', closeLightbox)
+preview.querySelector('.pv-close').addEventListener('click', (e) => { e.stopPropagation(); unfocus() })
+preview.querySelector('.pv-prev').addEventListener('click', (e) => { e.stopPropagation(); navFocus(-1) })
+preview.querySelector('.pv-next').addEventListener('click', (e) => { e.stopPropagation(); navFocus(1) })
+scrim.addEventListener('click', unfocus)
 addEventListener('keydown', (e) => {
   if (!focused) return
-  if (e.key === 'Escape') closeLightbox()
-  else if (e.key === 'ArrowLeft') navLightbox(-1)
-  else if (e.key === 'ArrowRight') navLightbox(1)
+  if (e.key === 'Escape') unfocus()
+  else if (e.key === 'ArrowLeft') navFocus(-1)
+  else if (e.key === 'ArrowRight') navFocus(1)
 })
 
 // ── input: pointer, pan (middle drag), zoom (wheel) ───────────
@@ -384,7 +411,7 @@ addEventListener('pointermove', (e) => {
   pointer.x = e.clientX
   pointer.y = e.clientY
   pointer.has = true
-  if (!started) started = true
+  if (!started) { started = true; hideFinger() }
 })
 stage.addEventListener('pointerenter', () => { hovering = true })
 stage.addEventListener('pointerleave', () => { hovering = false })
@@ -402,14 +429,14 @@ addEventListener('pointermove', (e) => {
 })
 stage.addEventListener('click', () => {
   if (focused || dragged) return
-  if (layout && layout.cells[featured]) openLightbox(layout.cells[featured].mi)
+  if (layout && layout.cells[featured]) focusPhoto(layout.cells[featured].mi)
 })
 
 // middle-button drag to pan
 let panning = false
 let panLast = null
 addEventListener('pointerdown', (e) => {
-  if (e.button !== 1) return
+  if (e.button !== 1 || focused) return
   e.preventDefault()
   panning = true
   panLast = { x: e.clientX, y: e.clientY }
@@ -483,6 +510,7 @@ async function addFiles(fileList) {
   previewMi = -1
   relayout()
   setReset(true)
+  hideHints()
   toast(`${uploaded.length} file${uploaded.length > 1 ? 's' : ''} on the wall`)
 }
 function resetMedia() {
@@ -546,6 +574,34 @@ themeBtn.addEventListener('click', () => {
   theme = theme === 'dark' ? 'light' : 'dark'
   applyTheme(theme)
 })
+
+// ── onboarding nudges (naive doodles + a roaming finger) ──────
+// A friendly hand invites the first cursor move; after a few seconds of
+// exploring, hand-drawn arrows point at Upload and the source link. Each shows
+// once, then retreats — and any real engagement dismisses them early.
+const finger = document.getElementById('finger')
+const hintUpload = document.getElementById('hint-upload')
+const hintSource = document.getElementById('hint-source')
+let hintsShown = false
+let hintHideTimer = null
+
+function hideFinger() { if (finger) finger.classList.remove('show') }
+function showHints() {
+  if (hintsShown || focused) return
+  hintsShown = true
+  if (hintUpload) hintUpload.classList.add('show')
+  if (hintSource) hintSource.classList.add('show')
+  clearTimeout(hintHideTimer)
+  hintHideTimer = setTimeout(hideHints, 6500)
+}
+function hideHints() {
+  if (hintUpload) hintUpload.classList.remove('show')
+  if (hintSource) hintSource.classList.remove('show')
+  clearTimeout(hintHideTimer)
+}
+setTimeout(() => { if (!started && finger) finger.classList.add('show') }, 1600)
+setTimeout(hideFinger, 11000)
+setTimeout(showHints, 7000)
 
 // ── go ────────────────────────────────────────────────────────
 relayout()

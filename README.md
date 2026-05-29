@@ -20,9 +20,10 @@ demo photos.
   Reset restores the demo set.
 - **Roam & zoom** — hold the **middle mouse button** and drag to traverse the
   canvas; **scroll to zoom** (it stays edge-to-edge at any zoom — no blank space).
-- **Click to open** — a click opens the centred (nearest) frame in a lightbox
-  that shows the full media uncropped, with file name + metadata. `←/→` navigate,
-  `Esc` closes.
+- **Click to open** — a click opens the centred (nearest) frame **in place**:
+  the photo glides to the middle and grows while the wall dims and blurs behind
+  it (no separate overlay), showing the full media uncropped with file name +
+  metadata. `←/→` navigate, `Esc` closes.
 - **Light / dark** — a theme toggle (top-right), remembered across visits.
 - **Particle wordmark** — the "Interstices" logo is set in Instrument Serif and
   rendered as a field of particles that assemble into the letterforms.
@@ -46,7 +47,7 @@ It's a static site — no build. On Vercel it serves the repo root as-is (see
 
 | file          | what it is                                                    |
 | ------------- | ------------------------------------------------------------- |
-| `index.html`  | page shell — wall, intro, controls, lightbox, credits         |
+| `index.html`  | page shell — wall, intro, controls, focus view, credits       |
 | `app.js`      | the wall engine: layout, drift, wrap, parting, upload, zoom   |
 | `logo.js`     | the particle wordmark                                         |
 | `style.css`   | the entire design system (light/dark tokens)                  |
