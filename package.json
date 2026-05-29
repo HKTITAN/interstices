@@ -1,0 +1,19 @@
+{
+  "name": "interstices",
+  "version": "2026.5.0",
+  "private": false,
+  "type": "module",
+  "description": "An interactive photography wall — a drifting field of frames that parts around your cursor. Drop in your own photos or video.",
+  "keywords": ["interactive", "photography", "canvas", "gallery", "particles", "webgl-free"],
+  "license": "AGPL-3.0-or-later",
+  "author": "Harshit Khemani (https://www.khe.money)",
+  "homepage": "https://interstices.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/HKTITAN/interstices.git"
+  },
+  "scripts": {
+    "start": "node serve.mjs",
+    "dev": "node serve.mjs"
+  }
+}
